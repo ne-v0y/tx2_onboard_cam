@@ -6,7 +6,10 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
+  sensor_msgs
 )
+
+find_package(Boost REQUIRED COMPONENTS thread)
 
 # find gstreamer
 find_package(PkgConfig REQUIRED)
@@ -93,6 +96,7 @@ target_link_libraries(utils
 
 add_executable(gscam src/gscam.cpp)
 target_link_libraries(gscam
+  ${catkin_LIBRARIES}
   internal_cuda
   utils
   ${CUDA_LIBRARIES}

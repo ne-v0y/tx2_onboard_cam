@@ -13,6 +13,9 @@
 
 #include "cudaNormalize.h"
 
+#include <ros/ros.h>
+#include <sensor_msgs/Image.h>
+#include "gscam_node.h"
 
 bool signal_recieved = false;
 
@@ -24,7 +27,6 @@ void sig_handler(int signo)
 		signal_recieved = true;
 	}
 }
-
 
 int main( int argc, char** argv )
 {
@@ -38,6 +40,14 @@ int main( int argc, char** argv )
 		
 	if( signal(SIGINT, sig_handler) == SIG_ERR )
 		printf("\ncan't catch SIGINT\n");
+
+    /*
+     * start ROS handler
+     */
+    ros::init(argc, argv, "onBoardCamera");
+    ros::NodeHandle nh, nh_private("~");
+    ros::Publisher testing_publisher;
+    testing_publisher = nh.advertise<sensor_msgs::Image>("/camera/tesing/raw", 1);
 
 	/*
 	 * create the camera device
@@ -55,34 +65,6 @@ int main( int argc, char** argv )
 	printf("   height:  %u\n", camera->GetHeight());
 	printf("    depth:  %u (bpp)\n", camera->GetPixelDepth());
 	
-
-
-	/*
-	 * create openGL window
-	 */
-	glDisplay* display = glDisplay::Create();
-	
-	if( !display )
-		printf("\ngst-camera:  failed to create openGL display\n");
-
-	const size_t texSz = camera->GetWidth() * camera->GetHeight() * sizeof(float4);
-	float4* texIn = (float4*)malloc(texSz);
-
-	/*if( texIn != NULL )
-		memset(texIn, 0, texSz);*/
-
-	if( texIn != NULL )
-		for( uint32_t y=0; y < camera->GetHeight(); y++ )
-			for( uint32_t x=0; x < camera->GetWidth(); x++ )
-				texIn[y*camera->GetWidth()+x] = make_float4(0.0f, 1.0f, 1.0f, 1.0f);
-
-	glTexture* texture = glTexture::Create(camera->GetWidth(), camera->GetHeight(), GL_RGBA32F_ARB/*GL_RGBA8*/, texIn);
-
-	if( !texture )
-		printf("gst-camera:  failed to create openGL texture\n");
-	
-	
-
 	/*
 	 * start streaming
 	 */
@@ -116,34 +98,13 @@ int main( int argc, char** argv )
 		CUDA(cudaNormalizeRGBA((float4*)imgRGBA, make_float2(0.0f, 255.0f), 
 						   (float4*)imgRGBA, make_float2(0.0f, 1.0f), 
  						   camera->GetWidth(), camera->GetHeight()));
-
-		// update display
-		if( display != NULL )
-		{
-			display->UserEvents();
-			display->BeginRender();
-
-			if( texture != NULL )
-			{
-				void* tex_map = texture->MapCUDA();
-
-				if( tex_map != NULL )
-				{
-					cudaMemcpy(tex_map, imgRGBA, texture->GetSize(), cudaMemcpyDeviceToDevice);
-					CUDA(cudaDeviceSynchronize());
-
-					texture->Unmap();
-				}
-				//texture->UploadCPU(texIn);
-
-				texture->Render(100,100);		
-			}
-
-			display->EndRender();
-		}
+        
+        sensor_msgs::ImagePtr img(new sensor_msgs::Image());
+        img->data = imgRGBA;
+        ROS_INFO("Publishing to image topic");
+        testing_publisher.publish(img);
 	}
-	
-	printf("\ngst-camera:  un-initializing video device\n");
+
 	
 	
 	/*
@@ -155,13 +116,10 @@ int main( int argc, char** argv )
 		camera = NULL;
 	}
 
-	if( display != NULL )
-	{
-		delete display;
-		display = NULL;
-	}
-	
 	printf("gst-camera:  video device has been un-initialized.\n");
 	printf("gst-camera:  this concludes the test of the video device.\n");
 	return 0;
+  
+    // ros tick
+    ros::spin();
 }
