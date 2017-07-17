@@ -7,9 +7,11 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
   sensor_msgs
+  cv_bridge
 )
 
 find_package(Boost REQUIRED COMPONENTS thread)
+find_package(OpenCV REQUIRED)
 
 # find gstreamer
 find_package(PkgConfig REQUIRED)
@@ -68,6 +70,7 @@ include_directories(include/on_board_cam
   ${GST_APP_INCLUDE_DIRS}
   ${Qt5Widgets_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
 )
 
 cuda_add_library(internal_cuda 
@@ -97,6 +100,7 @@ target_link_libraries(utils
 add_executable(gscam src/gscam.cpp)
 target_link_libraries(gscam
   ${catkin_LIBRARIES}
+  ${OpenCV_LIBS}
   internal_cuda
   utils
   ${CUDA_LIBRARIES}

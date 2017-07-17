@@ -59,7 +59,7 @@ gstCamera::~gstCamera()
 
 
 // ConvertRGBA
-bool gstCamera::ConvertRGBA( void* input, void** output )
+bool gstCamera::ConvertRGBA( void* input, float4** output )
 {
 	if( !input || !output )
 		return false;

@@ -7,7 +7,7 @@
 
 #include <gst/gst.h>
 #include <string>
-
+#include "cudaUtility.h"
 
 struct _GstAppSink;
 class QWaitCondition;
@@ -36,7 +36,7 @@ public:
 	bool Capture( void** cpu, void** cuda, unsigned long timeout=ULONG_MAX );
 	
 	// Takes in captured YUV-NV12 CUDA image, converts to float4 RGBA (with pixel intensity 0-255)
-	bool ConvertRGBA( void* input, void** output );
+	bool ConvertRGBA( void* input, float4** output );
 	
 	// Image dimensions
 	inline uint32_t GetWidth() const	  { return mWidth; }
@@ -85,7 +85,7 @@ private:
 	uint32_t mLatestRingbuffer;
 	bool     mLatestRetrieved;
 	
-	void* mRGBA[NUM_RINGBUFFERS];
+	float4* mRGBA[NUM_RINGBUFFERS];
 	int   mV4L2Device;	// -1 for onboard, >=0 for V4L2 device
 	
 	inline bool onboardCamera() const		{ return (mV4L2Device < 0); }

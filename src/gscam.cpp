@@ -15,7 +15,15 @@
 
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
+#include <sensor_msgs/image_encodings.h>
 #include "gscam_node.h"
+
+#include <opencv2/core/core.hpp>
+#include <cv_bridge/cv_bridge.h>
+
+#include <boost/numeric/conversion/converter.hpp>
+
+using namespace cv;
 
 bool signal_recieved = false;
 
@@ -36,10 +44,7 @@ int main( int argc, char** argv )
 		printf("%i [%s]  ", i, argv[i]);
 		
 	printf("\n");
-	
-		
-	if( signal(SIGINT, sig_handler) == SIG_ERR )
-		printf("\ncan't catch SIGINT\n");
+
 
     /*
      * start ROS handler
@@ -48,6 +53,9 @@ int main( int argc, char** argv )
     ros::NodeHandle nh, nh_private("~");
     ros::Publisher testing_publisher;
     testing_publisher = nh.advertise<sensor_msgs::Image>("/camera/tesing/raw", 1);
+
+	if( signal(SIGINT, sig_handler) == SIG_ERR )
+		printf("\ncan't catch SIGINT\n");
 
 	/*
 	 * create the camera device
@@ -89,20 +97,42 @@ int main( int argc, char** argv )
 			printf("gst-camera:  recieved new frame  CPU=0x%p  GPU=0x%p\n", imgCPU, imgCUDA);
 		
 		// convert from YUV to RGBA
-		void* imgRGBA = NULL;
-		
+		float4* imgRGBA = NULL;
+
 		if( !camera->ConvertRGBA(imgCUDA, &imgRGBA) )
 			printf("gst-camera:  failed to convert from NV12 to RGBA\n");
 
 		// rescale image pixel intensities
+/*
 		CUDA(cudaNormalizeRGBA((float4*)imgRGBA, make_float2(0.0f, 255.0f), 
-						   (float4*)imgRGBA, make_float2(0.0f, 1.0f), 
+						   (float4*)imgRGBA, make_float2(0.0f, 255.0f), 
  						   camera->GetWidth(), camera->GetHeight()));
-        
-        sensor_msgs::ImagePtr img(new sensor_msgs::Image());
-        img->data = imgRGBA;
+*/  
+        typedef boost::numeric::converter<int, float> Float2Int;
+
+        int img_height = Float2Int()(camera->GetHeight());
+        int img_width = Float2Int()(camera->GetWidth());
+
+        Mat test;
+        test.create(img_height, img_width, CV_32FC4);
+        cudaMemcpy(test.data, imgRGBA, camera->GetWidth() * camera->GetHeight() * sizeof(float), cudaMemcpyDeviceToDevice);
+
+        //memcpy(test.data, &imgRGBA, img_height * img_width * sizeof(float));
+
+        Mat test1;
+        test1.create(camera->GetHeight(), camera->GetWidth(), CV_8UC4);
+
+        for(int i = 0; i < test.rows; i ++){
+            for(int j = 0 ; j < test.cols; j ++){
+                test1.at<int>(i, j) = test.at<int>(i, j); 
+            }
+        }
+              
+        sensor_msgs::ImagePtr msg;
+        msg = cv_bridge::CvImage(std_msgs::Header(), "rgba8", test1).toImageMsg();
         ROS_INFO("Publishing to image topic");
-        testing_publisher.publish(img);
+        testing_publisher.publish(msg);
+
 	}
 
 	
