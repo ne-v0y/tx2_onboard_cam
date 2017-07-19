@@ -59,25 +59,51 @@ gstCamera::~gstCamera()
 
 
 // ConvertRGBA
-bool gstCamera::ConvertRGBA( void* input, float4** output )
+bool gstCamera::ConvertRGBA( void* input, void** output, bool zeroCopy )
 {
 	if( !input || !output )
 		return false;
 	
 	if( !mRGBA[0] )
 	{
+
+        const size_t size = mWidth * mHeight * sizeof(float4);
+
 		for( uint32_t n=0; n < NUM_RINGBUFFERS; n++ )
 		{
-			if( CUDA_FAILED(cudaMalloc(&mRGBA[n], mWidth * mHeight * sizeof(float4))) )
+            if( zeroCopy )
+            {
+                void* cpuPtr = NULL;
+                void* gpuPtr = NULL;
+
+                if( !cudaAllocMapped(&cpuPtr, &gpuPtr, size) )
+                {
+                    printf(LOG_CUDA "gstCamera -- failed to allocate zeroCopy memory for %ux%ux RGBA texture\n", mWidth, mHeight);
+                    return false;
+                }
+                if( cpuPtr != gpuPtr )
+                {    
+                    printf(LOG_CUDA "gstCamera -- zeroCopy memory has different pointers, please use a UVA-compatible GPU\n");
+                    return false;
+                }
+
+                mRGBA[n] = gpuPtr;
+
+            }
+
+            else
 			{
-				printf(LOG_CUDA "gstCamera -- failed to allocate memory for %ux%u RGBA texture\n", mWidth, mHeight);
-				return false;
+                if( CUDA_FAILED(cudaMalloc(&mRGBA[n], size)) )
+                {
+				    printf(LOG_CUDA "gstCamera -- failed to allocate memory for %ux%u RGBA texture\n", mWidth, mHeight);
+				    return false;
+                }
 			}
 		}
-		
+
 		printf(LOG_CUDA "gstreamer camera -- allocated %u RGBA ringbuffers\n", NUM_RINGBUFFERS);
 	}
-	
+
 	if( onboardCamera() )
 	{
 		// onboard camera is NV12
@@ -90,7 +116,6 @@ bool gstCamera::ConvertRGBA( void* input, float4** output )
 		if( CUDA_FAILED(cudaRGBToRGBAf((uchar3*)input, (float4*)mRGBA[mLatestRGBA], mWidth, mHeight)) )
 			return false;
 	}
-	
 	*output     = mRGBA[mLatestRGBA];
 	mLatestRGBA = (mLatestRGBA + 1) % NUM_RINGBUFFERS;
 	return true;

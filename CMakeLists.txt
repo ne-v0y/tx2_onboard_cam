@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(on_board_cam)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -g")
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
@@ -92,9 +92,11 @@ add_library(utils
   src/gstUtility.cpp
   src/gstCamera.cpp
   src/v4l2Camera.cpp
+  src/utils.cpp
 )
 target_link_libraries(utils
   internal_cuda
+  ${Boost_LIBRARIES}
 )
 
 add_executable(gscam src/gscam.cpp)
