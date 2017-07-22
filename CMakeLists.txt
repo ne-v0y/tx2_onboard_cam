@@ -87,8 +87,6 @@ cuda_add_library(internal_cuda
 add_library(utils 
   src/commandLine.cpp
   src/loadImage.cpp
-  src/glDisplay.cpp
-  src/glTexture.cpp
   src/gstUtility.cpp
   src/gstCamera.cpp
   src/v4l2Camera.cpp

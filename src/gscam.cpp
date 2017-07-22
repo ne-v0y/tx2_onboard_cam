@@ -4,9 +4,6 @@
 
 #include "gstCamera.h"
 
-#include "glDisplay.h"
-#include "glTexture.h"
-
 #include <stdio.h>
 #include <signal.h>
 #include <unistd.h>
@@ -44,6 +41,8 @@ int main( int argc, char** argv )
 		
 	printf("\n");
 
+	if( signal(SIGINT, sig_handler) == SIG_ERR )
+		printf("\ncan't catch SIGINT\n");
 
     /*
      * start ROS handler
@@ -51,10 +50,7 @@ int main( int argc, char** argv )
     ros::init(argc, argv, "onBoardCamera");
     ros::NodeHandle nh, nh_private("~");
     ros::Publisher testing_publisher;
-    testing_publisher = nh.advertise<sensor_msgs::Image>("/camera/tesing/raw", 1);
-
-	if( signal(SIGINT, sig_handler) == SIG_ERR )
-		printf("\ncan't catch SIGINT\n");
+    testing_publisher = nh.advertise<sensor_msgs::Image>("/bottom/image/raw", 1);
 
 	/*
 	 * create the camera device
@@ -102,25 +98,24 @@ int main( int argc, char** argv )
 			printf("gst-camera:  failed to convert from NV12 to RGBA\n");
 
 		// rescale image pixel intensities
-/*
+        /*
 		CUDA(cudaNormalizeRGBA((float4*)imgRGBA, make_float2(0.0f, 255.0f), 
 						   (float4*)imgRGBA, make_float2(0.0f, 255.0f), 
  						   camera->GetWidth(), camera->GetHeight()));
-*/  
-
+        cudaMemcpy(test.data, imgRGBA, camera->GetWidth() * camera->GetHeight() * sizeof(float), cudaMemcpyDeviceToDevice);
+        */  
 
         int img_height = helperlibs::Float2Int()(camera->GetHeight());
         int img_width = helperlibs::Float2Int()(camera->GetWidth());
 
-        Mat test = Mat::zeros(img_height, img_width, CV_32FC4);
+        Mat test = Mat::zeros(img_height, img_width, CV_32FC3);
         helperlibs::Float42Mat(static_cast<float4*>(imgRGBA), test, img_width, img_height);
-        //cudaMemcpy(test.data, imgRGBA, camera->GetWidth() * camera->GetHeight() * sizeof(float), cudaMemcpyDeviceToDevice);
-        
+
         Mat out;
-        test.convertTo(out, CV_8UC4);
+        test.convertTo(out, CV_8UC3);
 
         sensor_msgs::ImagePtr msg;
-        msg = cv_bridge::CvImage(std_msgs::Header(), "bgra8", out).toImageMsg();
+        msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", out).toImageMsg();
         ROS_INFO("Publishing to image topic");
         testing_publisher.publish(msg);
 
