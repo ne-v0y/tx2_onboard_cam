@@ -1,140 +1,89 @@
-/*
- * inference-101
- */
+// gscam node handler 
+// created on: July 16 2017
+// author: Noni Hua
+// reference: ROS gscam_driver
 
-#include "gstCamera.h"
-
-#include <stdio.h>
-#include <signal.h>
-#include <unistd.h>
-
-#include "cudaNormalize.h"
-
-#include <ros/ros.h>
-#include <sensor_msgs/Image.h>
-#include <sensor_msgs/image_encodings.h>
-#include "gscam_node.h"
-#include "utils.h"
-
-#include <opencv2/core/core.hpp>
-#include <cv_bridge/cv_bridge.h>
+#include <gscam.h>
 
 using namespace cv;
+using namespace std;
 
-bool signal_recieved = false;
+namespace au_core {
 
-void sig_handler(int signo)
-{
-	if( signo == SIGINT )
-	{
-		printf("received SIGINT\n");
-		signal_recieved = true;
-	}
-}
+    GSCam::GSCam(ros::NodeHandle nh_camera, ros::NodeHandle nh_private) :
+      nh_(nh_camera),
+      nh_private_(nh_private)
+      //image_transport_(nh_camera),
+      //camera_info_manager_(nh_camera)
+    {
+        bottom_pub_ = nh_.advertise<sensor_msgs::Image>("/bottom/image/raw", 1);
+        cinfo_pub_ = nh_.advertise<sensor_msgs::CameraInfo>("/bottom/camera_info",1);
 
-int main( int argc, char** argv )
-{
-	printf("gst-camera\n  args (%i):  ", argc);
+        frame_ = Mat::zeros(height_, width_, CV_32FC3);
 
-	for( int i=0; i < argc; i++ )
-		printf("%i [%s]  ", i, argv[i]);
-		
-	printf("\n");
+        init_stream();
+    }
 
-	if( signal(SIGINT, sig_handler) == SIG_ERR )
-		printf("\ncan't catch SIGINT\n");
+    GSCam::~GSCam()
+    {
+    }
 
-    /*
-     * start ROS handler
-     */
-    ros::init(argc, argv, "onBoardCamera");
-    ros::NodeHandle nh, nh_private("~");
-    ros::Publisher testing_publisher;
-    testing_publisher = nh.advertise<sensor_msgs::Image>("/bottom/image/raw", 1);
+    void GSCam::init_stream()
+    {
+        GSCam::myCam_ = gstCamera::Create();
+        if( !myCam_ )
+        {
+            ROS_INFO("\ngst-camera: failed to initialize video device\n");
+            exit(0);
+        }
 
-	/*
-	 * create the camera device
-	 */
-	gstCamera* camera = gstCamera::Create();
+        height_ = helperlibs::Float2Int()(myCam_->GetHeight());
+        width_ = helperlibs::Float2Int()(myCam_->GetWidth());   
+	    
+        if( !myCam_->Open() )
+	    {
+		    ROS_INFO("\ngst-camera:  failed to open camera for streaming\n");
+		    exit(0);
+	    }
 	
-	if( !camera )
-	{
-		printf("\ngst-camera:  failed to initialize video device\n");
-		return 0;
-	}
+	    ROS_INFO("\ngst-camera:  camera open for streaming\n");   
+    }
+
+    void GSCam::run()
+    {
+        // get the latest frame
+		if( !myCam_->Capture(&imgCPU, &imgCUDA, 1000) )
+			ROS_INFO("\ngst-camera:  failed to capture frame\n");
+		//else
+		//	ROS_INFO("gst-camera:  recieved new frame  CPU=0x%p  GPU=0x%p\n", imgCPU, imgCUDA);
 	
-	printf("\ngst-camera:  successfully initialized video device\n");
-	printf("    width:  %u\n", camera->GetWidth());
-	printf("   height:  %u\n", camera->GetHeight());
-	printf("    depth:  %u (bpp)\n", camera->GetPixelDepth());
-	
-	/*
-	 * start streaming
-	 */
-	if( !camera->Open() )
-	{
-		printf("\ngst-camera:  failed to open camera for streaming\n");
-		return 0;
-	}
-	
-	printf("\ngst-camera:  camera open for streaming\n");
-	
-	
-	while( !signal_recieved )
-	{
-		void* imgCPU  = NULL;
-		void* imgCUDA = NULL;
-		
-		// get the latest frame
-		if( !camera->Capture(&imgCPU, &imgCUDA, 1000) )
-			printf("\ngst-camera:  failed to capture frame\n");
-		else
-			printf("gst-camera:  recieved new frame  CPU=0x%p  GPU=0x%p\n", imgCPU, imgCUDA);
-		
-		// convert from YUV to RGBA
-		void* imgRGBA = NULL;
+		if( !myCam_->ConvertRGBA(imgCUDA, &imgRGBA, true) )
+			ROS_INFO("gst-camera:  failed to convert from NV12 to RGBA\n"); 
+        
+        frame_ = Mat::zeros(height_, width_, CV_32FC3);
+        helperlibs::Float42Mat(static_cast<float4*>(imgRGBA), frame_, width_, height_);
 
-		if( !camera->ConvertRGBA(imgCUDA, &imgRGBA, true) )
-			printf("gst-camera:  failed to convert from NV12 to RGBA\n");
+        frame_.convertTo(frame_out_, CV_8UC3);
+        publish_stream();
+    }
 
-		// rescale image pixel intensities
-        /*
-		CUDA(cudaNormalizeRGBA((float4*)imgRGBA, make_float2(0.0f, 255.0f), 
-						   (float4*)imgRGBA, make_float2(0.0f, 255.0f), 
- 						   camera->GetWidth(), camera->GetHeight()));
-        cudaMemcpy(test.data, imgRGBA, camera->GetWidth() * camera->GetHeight() * sizeof(float), cudaMemcpyDeviceToDevice);
-        */  
-
-        int img_height = helperlibs::Float2Int()(camera->GetHeight());
-        int img_width = helperlibs::Float2Int()(camera->GetWidth());
-
-        Mat test = Mat::zeros(img_height, img_width, CV_32FC3);
-        helperlibs::Float42Mat(static_cast<float4*>(imgRGBA), test, img_width, img_height);
-
-        Mat out;
-        test.convertTo(out, CV_8UC3);
-
+    void GSCam::publish_stream()
+    {
         sensor_msgs::ImagePtr msg;
-        msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", out).toImageMsg();
-        ROS_INFO("Publishing to image topic");
-        testing_publisher.publish(msg);
+        msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", frame_out_).toImageMsg();
 
-	} 
-	
-	
-	/*
-	 * shutdown the camera device
-	 */
-	if( camera != NULL )
-	{
-		delete camera;
-		camera = NULL;
-	}
+        bottom_pub_.publish(msg); 
+    }
+    
+    void GSCam::close()
+    {
+        ros::shutdown();
+        if( myCam_ != NULL )
+	    {
+		    delete myCam_;
+		    myCam_ = NULL;
+	    }
+        ROS_INFO("Cleaning up streams and piplines...");
+    }
 
-	printf("gst-camera:  video device has been un-initialized.\n");
-	printf("gst-camera:  this concludes the test of the video device.\n");
-	return 0;
-  
-    // ros tick
-    ros::spin();
-}
+} // end of namespace

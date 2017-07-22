@@ -1,50 +1,41 @@
-// gscam node handler 
-// created on: July 16 2017
-// author: Noni Hua
-// reference: ROS gscam_driver
-
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-
-#include <iostream>
-extern "C"{
-#include <gst/gst.h>
-#include <gst/app/gstappsink.h>
-}
-
+/*
+ * inference-101
+ */
+#include <signal.h>
 #include <ros/ros.h>
 
-#include <image_transport/image_transport.h>
-#include <camera_info_manager/camera_info_manager.h>
+#include <gscam.h>
 
 
-#include <sensor_msgs/Image.h>
-#include <sensor_msgs/CompressedImage.h>
-#include <sensor_msgs/CameraInfo.h>
-#include <sensor_msgs/SetCameraInfo.h>
-#include <sensor_msgs/image_encodings.h>
+bool error_signal_recieved_ = false;
 
-#include <camera_calibration_parsers/parse_ini.h>
+void sig_handler(int signo)
+{
+	if( signo == SIGINT )
+	{
+		printf("received SIGINT\n");
+		error_signal_recieved_ = true;
+	}
+}
 
-#include <gscam/gscam.h>
+int main( int argc, char** argv )
+{
+	if( signal(SIGINT, sig_handler) == SIG_ERR )
+		ROS_WARN("can't catch SIGINT");
 
-namespace au_core {
+    ros::init(argc, argv, "gscam_publisher");
+    ros::NodeHandle nh;
+    ros::NodeHandle private_nh("~");
 
-  GSCam::GSCam(ros::NodeHandler nh_camera, ros::NodeHnadle nh_private) :
-    nh_(nh_camera),
-    nh_private_(nh_private),
-    image_transport_(nh),
-    camera_infor_manager_(nh)
-  {
-  }
+    au_core::GSCam gscam(nh, private_nh);
 
-  GSCam::~GSCam()
-  {
-  }
+    while(ros::ok() && !error_signal_recieved_)
+    {
+        gscam.run();
+    }
     
+    gscam.close();
 
+    return 0;
+}
 
-
-} // end of namespace

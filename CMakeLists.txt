@@ -8,6 +8,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   sensor_msgs
   cv_bridge
+  image_transport
 )
 
 find_package(Boost REQUIRED COMPONENTS thread)
@@ -91,13 +92,15 @@ add_library(utils
   src/gstCamera.cpp
   src/v4l2Camera.cpp
   src/utils.cpp
+  src/gscam.cpp
 )
 target_link_libraries(utils
   internal_cuda
   ${Boost_LIBRARIES}
+  ${catkin_LIBRARIES}
 )
 
-add_executable(gscam src/gscam.cpp)
+add_executable(gscam src/gscam_node.cpp)
 target_link_libraries(gscam
   ${catkin_LIBRARIES}
   ${OpenCV_LIBS}
