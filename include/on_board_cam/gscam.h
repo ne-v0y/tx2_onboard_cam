@@ -24,6 +24,8 @@ extern "C"{
 #include <sensor_msgs/Image.h>
 #include <image_transport/image_transport.h>
 #include <sensor_msgs/image_encodings.h>
+#include <sensor_msgs/CameraInfo.h>
+#include <sensor_msgs/SetCameraInfo.h>
 #include <camera_info_manager/camera_info_manager.h>
 #include <camera_calibration_parsers/parse_ini.h>
 
@@ -57,16 +59,6 @@ private:
     // General gstreamer configuration
     std::string gsconfig_;
 
-    // Gstreamer structures
-    // GstElement *pipeline_;
-    // GstElement *sink_;
-
-    // Appsink configuration
-    // bool sync_sink_;
-    // bool preroll_;
-    // bool reopen_on_eof_;
-    // bool use_gst_timestamps_;
-
     // Camera publisher configuration
     cv::Mat frame_;
     cv::Mat frame_out_;
@@ -74,14 +66,15 @@ private:
     int width_, height_;
     std::string image_encoding_;
     std::string camera_name_;
+    std::string camera_info_name_;
     std::string camera_info_url_;
 
     // ROS Inteface
     // Calibration between ros::Time and gst timestamps
     double time_offset_;
     ros::NodeHandle nh_, nh_private_;
-    //image_transport::ImageTransport image_transport_;
-    //camera_info_manager::CameraInfoManager camera_info_manager_;
+    image_transport::ImageTransport image_transport_;
+    camera_info_manager::CameraInfoManager camera_info_manager_;
     //image_transport::CameraPublisher camera_pub_;
     
     // Image and Info publisher

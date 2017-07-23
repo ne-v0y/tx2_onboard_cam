@@ -6,7 +6,7 @@ Output topics:
 Built on top of [jetson-inference](https://github.com/dusty-nv/jetson-inference) gscamera.  
 
 ## Usage  
-- `rosrun on_board_cam gscam` after successfully compiles under your catkin workspace  
+- `roslaunch on_board_cam bottom.launch` after successfully compiles under your catkin workspace  
 
 ## Compiling dependencies  
 - ROS(built on Kinect, not tested on other distro yet)    

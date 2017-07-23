@@ -1,0 +1,12 @@
+<launch>
+  <node
+    pkg="on_board_cam"
+    type="gscam"
+    name="gscam"
+    output="screen"
+    respawn="false">
+    
+    <rosparam file="$(find on_board_cam)/params/camera.yaml" />
+    <param name="caminfo_url" value="package://on_board_cam/params/caminfo.ini"/>
+   </node>
+</launch>

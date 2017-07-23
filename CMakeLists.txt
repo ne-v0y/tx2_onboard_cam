@@ -9,6 +9,8 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   cv_bridge
   image_transport
+  camera_info_manager
+  message_generation
 )
 
 find_package(Boost REQUIRED COMPONENTS thread)

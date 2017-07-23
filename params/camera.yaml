@@ -1,0 +1,7 @@
+# camera output name
+camera_topic: /bottom/camera/raw
+info_topic: /bottom/camera_info
+
+# frame specs
+frame_height: 480
+frame_width: 640
