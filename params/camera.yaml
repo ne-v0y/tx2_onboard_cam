@@ -1,5 +1,5 @@
 # camera output name
-camera_topic: /bottom/camera/raw
+camera_topic: /bottom/camera/image_raw
 info_topic: /bottom/camera_info
 
 # frame specs
