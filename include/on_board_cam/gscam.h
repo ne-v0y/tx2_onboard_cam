@@ -36,7 +36,7 @@ extern "C"{
 namespace au_core {
 
 class GSCam {
-  
+
 public:
     GSCam(ros::NodeHandle nh_camera, ros::NodeHandle nh_private);
     ~GSCam();
@@ -75,8 +75,8 @@ private:
     ros::NodeHandle nh_, nh_private_;
     image_transport::ImageTransport image_transport_;
     camera_info_manager::CameraInfoManager camera_info_manager_;
-    //image_transport::CameraPublisher camera_pub_;
-    
+    image_transport::CameraPublisher camera_pub_;
+
     // Image and Info publisher
     ros::Publisher bottom_pub_;
     ros::Publisher cinfo_pub_;

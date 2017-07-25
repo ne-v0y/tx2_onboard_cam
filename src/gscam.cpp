@@ -1,4 +1,4 @@
-// gscam node handler 
+// gscam node handler
 // created on: July 16 2017
 // author: Noni Hua
 // reference: ROS gscam_driver
@@ -28,11 +28,11 @@ namespace au_core {
 
         nh_private_.getParam("caminfo_url", camera_info_url_);
         camera_info_manager_.setCameraName(camera_name_);
-        if(camera_info_manager_.validateURL(camera_info_url_)) 
+        if(camera_info_manager_.validateURL(camera_info_url_))
         {
           camera_info_manager_.loadCameraInfo(camera_info_url_);
           ROS_INFO_STREAM("Loaded camera calibration from "<<camera_info_url_);
-        } 
+        }
         else {
           ROS_WARN_STREAM("Camera info at: "<<camera_info_url_<<" not found. Using an uncalibrated config.");
         }
@@ -52,14 +52,14 @@ namespace au_core {
             ROS_INFO("\ngst-camera: failed to initialize video device\n");
             exit(0);
         }
-	    
+
         if( !myCam_->Open() )
 	    {
 		    ROS_INFO("\ngst-camera:  failed to open camera for streaming\n");
 		    exit(0);
 	    }
-	
-	    ROS_INFO("\ngst-camera:  camera open for streaming\n");   
+
+	    ROS_INFO("\ngst-camera:  camera open for streaming\n");
     }
 
     void GSCam::run()
@@ -69,19 +69,30 @@ namespace au_core {
 			ROS_INFO("\ngst-camera:  failed to capture frame\n");
 		//else
 		//	ROS_INFO("gst-camera:  recieved new frame  CPU=0x%p  GPU=0x%p\n", imgCPU, imgCUDA);
-	
+
 		if( !myCam_->ConvertRGBA(imgCUDA, &imgRGBA, true) )
-			ROS_INFO("gst-camera:  failed to convert from NV12 to RGBA\n"); 
-        
-        frame_ = Mat::zeros(height_, width_, CV_32FC3);
-        helperlibs::Float42Mat(static_cast<float4*>(imgRGBA), frame_, width_, height_);
-        
-        Mat m = frame_.clone();
-        frame_.convertTo(m, CV_8UC3);
+			ROS_INFO("gst-camera:  failed to convert from NV12 to RGBA\n");
 
-        flip(m, frame_out_, -1);
+        sensor_msgs::CompressedImagePtr img(new sensor_msgs::CompressedImage());
+        void * data_ptr = &(img->data);
+        cudaMemcpy(data_ptr, imgRGBA, width_ * height_ * sizeof(float4), cudaMemcpyDeviceToDevice);
+        img->format = "jpeg";
+        bottom_pub_.publish(img);
 
-        publish_stream();
+        sensor_msgs::CameraInfo cur_cinfo = camera_info_manager_.getCameraInfo();
+        sensor_msgs::CameraInfoPtr cinfo;
+        cinfo.reset(new sensor_msgs::CameraInfo(cur_cinfo));
+
+        cinfo_pub_.publish(cinfo);
+        // frame_ = Mat::zeros(height_, width_, CV_32FC3);
+        // helperlibs::Float42Mat(static_cast<float4*>(imgRGBA), frame_, width_, height_);
+        //
+        // Mat m = frame_.clone();
+        // frame_.convertTo(m, CV_8UC3);
+        //
+        // flip(m, frame_out_, -1);
+        //
+        // publish_stream();
     }
 
     void GSCam::publish_stream()
@@ -89,7 +100,7 @@ namespace au_core {
         sensor_msgs::ImagePtr msg;
         msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", frame_out_).toImageMsg();
 
-        bottom_pub_.publish(msg); 
+        bottom_pub_.publish(msg);
 
         sensor_msgs::CameraInfo cur_cinfo = camera_info_manager_.getCameraInfo();
         sensor_msgs::CameraInfoPtr cinfo;
@@ -98,7 +109,7 @@ namespace au_core {
         cinfo_pub_.publish(cinfo);
 
     }
-    
+
     void GSCam::close()
     {
         ros::shutdown();
