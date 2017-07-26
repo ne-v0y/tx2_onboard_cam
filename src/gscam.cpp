@@ -73,26 +73,15 @@ namespace au_core {
 		if( !myCam_->ConvertRGBA(imgCUDA, &imgRGBA, true) )
 			ROS_INFO("gst-camera:  failed to convert from NV12 to RGBA\n");
 
-        sensor_msgs::CompressedImagePtr img(new sensor_msgs::CompressedImage());
-        void * data_ptr = &(img->data);
-        cudaMemcpy(data_ptr, imgRGBA, width_ * height_ * sizeof(float4), cudaMemcpyDeviceToDevice);
-        img->format = "jpeg";
-        bottom_pub_.publish(img);
+        frame_ = Mat::zeros(height_, width_, CV_32FC3);
+        helperlibs::Float42Mat(static_cast<float4*>(imgRGBA), frame_, width_, height_);
 
-        sensor_msgs::CameraInfo cur_cinfo = camera_info_manager_.getCameraInfo();
-        sensor_msgs::CameraInfoPtr cinfo;
-        cinfo.reset(new sensor_msgs::CameraInfo(cur_cinfo));
+        Mat m = frame_.clone();
+        frame_.convertTo(m, CV_8UC3);
 
-        cinfo_pub_.publish(cinfo);
-        // frame_ = Mat::zeros(height_, width_, CV_32FC3);
-        // helperlibs::Float42Mat(static_cast<float4*>(imgRGBA), frame_, width_, height_);
-        //
-        // Mat m = frame_.clone();
-        // frame_.convertTo(m, CV_8UC3);
-        //
-        // flip(m, frame_out_, -1);
-        //
-        // publish_stream();
+        flip(m, frame_out_, -1);
+
+        publish_stream();
     }
 
     void GSCam::publish_stream()

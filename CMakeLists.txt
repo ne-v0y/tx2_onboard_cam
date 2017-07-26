@@ -33,7 +33,7 @@ else()
 endif()
 
 #find glew
-find_package(GLEW REQUIRED)
+#find_package(GLEW REQUIRED)
 
 # find Qt5
 find_package(Qt5Widgets REQUIRED)
@@ -68,8 +68,8 @@ catkin_package(
 include_directories(include/on_board_cam
   ${CUDA_INCLUDE_DIRS}
   ${X11_INCLUDE_DIR} 
-  ${GLIB_INCLUDE_DIRS} 
-  ${GLEW_INCLUDE_DIRS}
+  #${GLIB_INCLUDE_DIRS} 
+  #${GLEW_INCLUDE_DIRS}
   ${GST_APP_INCLUDE_DIRS}
   ${Qt5Widgets_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
@@ -111,8 +111,8 @@ target_link_libraries(gscam
   ${CUDA_LIBRARIES}
   ${GSTREAMER_LIBRARIES} 
   ${GST_APP_LIBRARIES}
-  GL
-  GLEW
+  #GL
+  #GLEW
   Qt5::Widgets
   X11
   Xext
