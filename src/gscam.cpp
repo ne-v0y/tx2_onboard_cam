@@ -19,7 +19,7 @@ namespace au_core {
         nh_private_.getParam("/gscam/camera_topic", camera_name_);
         nh_private_.getParam("/gscam/info_topic", camera_info_name_);
 
-        bottom_pub_ = nh_.advertise<sensor_msgs::Image>(camera_name_, 1);
+        bottom_pub_ = image_transport_.advertise(camera_name_, 1);
         cinfo_pub_ = nh_.advertise<sensor_msgs::CameraInfo>(camera_info_name_,1);
 
         nh_private_.getParam("/gscam/frame_height", height_);
