@@ -78,7 +78,7 @@ private:
     image_transport::CameraPublisher camera_pub_;
 
     // Image and Info publisher
-    ros::Publisher bottom_pub_;
+    image_transport::Publisher bottom_pub_;
     ros::Publisher cinfo_pub_;
   };
 
